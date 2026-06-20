@@ -36,6 +36,7 @@ jobs:
             --targetDir . \
             --dockerfile Dockerfile \
             --containerPort 8080 \
+            --remark "ci: ${GITHUB_SHA::7}" \
             --override \
             --noConfirm
         env:
