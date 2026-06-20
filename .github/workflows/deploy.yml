@@ -33,6 +33,7 @@ jobs:
           wxcloud run:deploy . \
             --envId "$WX_ENV_ID" \
             --serviceName "$WX_SERVICE_NAME" \
+            --targetDir . \
             --dockerfile Dockerfile \
             --containerPort 8080 \
             --override \
