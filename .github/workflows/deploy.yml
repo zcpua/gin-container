@@ -1,0 +1,42 @@
+name: Deploy to WeChat Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: wxcloud-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install wxcloud CLI
+        run: npm install -g @wxcloud/cli
+
+      - name: Login
+        run: wxcloud login --appId "$WX_APPID" --privateKey "$WX_PRIVATE_KEY"
+        env:
+          WX_APPID: ${{ secrets.WX_APPID }}
+          WX_PRIVATE_KEY: ${{ secrets.WX_PRIVATE_KEY }}
+
+      - name: Deploy
+        run: |
+          wxcloud run:deploy . \
+            --envId "$WX_ENV_ID" \
+            --serviceName "$WX_SERVICE_NAME" \
+            --dockerfile Dockerfile \
+            --containerPort 8080 \
+            --override \
+            --noConfirm
+        env:
+          WX_ENV_ID: ${{ secrets.WX_ENV_ID }}
+          WX_SERVICE_NAME: ${{ secrets.WX_SERVICE_NAME }}
