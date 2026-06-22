@@ -49,6 +49,16 @@ func listPerformances(db *gorm.DB) ([]Performance, error) {
 	return rows, err
 }
 
+func listBannerPerformances(db *gorm.DB, openid string) ([]Performance, error) {
+	var rows []Performance
+	err := db.Table("performances").
+		Joins("INNER JOIN favorites f ON f.performance_id = performances.id").
+		Where("f.openid = ?", openid).
+		Order("f.created_at desc").
+		Find(&rows).Error
+	return rows, err
+}
+
 func findPerformanceByID(db *gorm.DB, id string) (*Performance, error) {
 	var row Performance
 	err := db.Where("id = ?", id).First(&row).Error

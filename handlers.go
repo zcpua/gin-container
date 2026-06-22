@@ -73,6 +73,14 @@ func (h *handlers) listPerformances(c *gin.Context) {
 	c.JSON(http.StatusOK, rows)
 }
 
+func (h *handlers) listBannerPerformances(c *gin.Context) {
+	rows, err := listBannerPerformances(h.db, bannerOpenid)
+	if abortOnErr(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
 func (h *handlers) getPerformance(c *gin.Context) {
 	row, err := findPerformanceByID(h.db, c.Param("id"))
 	if abortOnErr(c, err) {
@@ -234,7 +242,7 @@ func (h *handlers) addToCollection(c *gin.Context, kind collectionKind) {
 }
 
 func (h *handlers) removeFavorite(c *gin.Context) { h.removeFromCollection(c, kindFavorites) }
-func (h *handlers) removeTicket(c *gin.Context)    { h.removeFromCollection(c, kindTickets) }
+func (h *handlers) removeTicket(c *gin.Context)   { h.removeFromCollection(c, kindTickets) }
 
 func (h *handlers) removeFromCollection(c *gin.Context, kind collectionKind) {
 	err := removeCollection(h.db, ctxOpenid(c), c.Param("performanceId"), kind)

@@ -10,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       # drizzle pg migrations run alphabetically on first boot to create the schema.
-      - ../drizzle/pg:/docker-entrypoint-initdb.d:ro
+      - ./drizzle/pg:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cantabile -d cantabile"]
       interval: 5s

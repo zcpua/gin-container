@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const bannerOpenid = "od6ryxbFSuApeg3K3fS5FSyasUf8"
+
 func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -64,6 +66,7 @@ func main() {
 		api.GET("/works", h.listWorks)
 		api.GET("/works/:slug", h.getWork)
 
+		api.GET("/banners", h.listBannerPerformances)
 		api.GET("/performances", h.listPerformances)
 		api.GET("/performances/:id", h.getPerformance)
 

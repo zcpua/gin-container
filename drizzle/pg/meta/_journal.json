@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780924577465,
+      "tag": "0000_curved_solo",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781008067135,
+      "tag": "0001_mysterious_microbe",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1812000000000,
+      "tag": "0002_user_collections",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1812000001000,
+      "tag": "0003_avatar_file_id",
+      "breakpoints": true
+    }
+  ]
+}
