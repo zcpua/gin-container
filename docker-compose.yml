@@ -25,6 +25,12 @@ services:
       # Bypass the WeChat gateway auth so /me/* is reachable in local dev.
       WECHAT_DEV_OPENID: dev-openid
       GIN_MODE: release
+      # UpYun S3-compatible avatar uploads. Bucket is the UpYun space name.
+      S3_ENDPOINT: https://s3.api.upyun.com
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_PUBLIC_DOMAIN: imgfore.10d.xin
     ports:
       - "8080:8080"
     depends_on:

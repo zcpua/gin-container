@@ -26,10 +26,20 @@ func main() {
 		sqlDB.SetConnMaxLifetime(30 * time.Minute)
 	}
 
-	// Inside WeChat Cloud Run we upload avatars to tencent COS with public-read
-	// ACL. Without COS_BUCKET the uploader stays nil and avatar uploads return 501.
+	// Avatar uploads. Prefer UpYun's S3-compatible API when S3_ACCESS_KEY is set,
+	// otherwise fall back to tencent COS inside WeChat Cloud Run. Without either,
+	// the uploader stays nil and avatar uploads return 501.
 	var upload avatarUploader
-	if bucket := os.Getenv("COS_BUCKET"); bucket != "" {
+	if ak := os.Getenv("S3_ACCESS_KEY"); ak != "" {
+		upload = upyunS3Uploader(s3Config{
+			Endpoint:     envOr("S3_ENDPOINT", "https://s3.api.upyun.com"),
+			Region:       envOr("S3_REGION", "us-east-1"),
+			Bucket:       os.Getenv("S3_BUCKET"),
+			AccessKey:    ak,
+			SecretKey:    os.Getenv("S3_SECRET_KEY"),
+			PublicDomain: os.Getenv("S3_PUBLIC_DOMAIN"),
+		})
+	} else if bucket := os.Getenv("COS_BUCKET"); bucket != "" {
 		upload = wxCosUploader(cosConfig{
 			Bucket:       bucket,
 			Region:       envOr("COS_REGION", "ap-shanghai"),

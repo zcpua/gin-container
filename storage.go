@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
@@ -65,6 +68,40 @@ func wxCosUploader(cfg cosConfig) avatarUploader {
 			result.FileID = &fileID
 		}
 		return result, nil
+	}
+}
+
+type s3Config struct {
+	Endpoint     string
+	Region       string
+	Bucket       string
+	AccessKey    string
+	SecretKey    string
+	PublicDomain string
+}
+
+// upyunS3Uploader uploads avatars to UpYun via its S3-compatible API and
+// returns the public https URL served from the configured access domain.
+func upyunS3Uploader(cfg s3Config) avatarUploader {
+	client := s3.New(s3.Options{
+		Region:       cfg.Region,
+		BaseEndpoint: aws.String(cfg.Endpoint),
+		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+		UsePathStyle: true,
+	})
+	return func(ctx context.Context, body []byte, contentType, key string) (avatarUploadResult, error) {
+		_, err := client.PutObject(ctx, &s3.PutObjectInput{
+			Bucket:      aws.String(cfg.Bucket),
+			Key:         aws.String(key),
+			Body:        bytes.NewReader(body),
+			ContentType: aws.String(contentType),
+		})
+		if err != nil {
+			return avatarUploadResult{}, err
+		}
+		return avatarUploadResult{
+			URL: fmt.Sprintf("https://%s/%s?v=%d", cfg.PublicDomain, key, time.Now().UnixMilli()),
+		}, nil
 	}
 }
 
