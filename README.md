@@ -30,6 +30,23 @@ Gin (Go) HTTP 服务,部署在**微信云托管**(WeChat Cloud Run),后端使用
 | `COS_PUBLIC_DOMAIN` | COS 自定义公开域名 |
 | `WECHAT_DEV_OPENID` | 仅本地开发:绕过网关鉴权 |
 
+## 开票提醒 notifier
+
+单副本 goroutine ticker,扫描 `sale_state_transitions` 里 `to_state='on_sale' AND notified_at IS NULL` 的行,对每条命中且用户已 opt-in(`notification_credits` 里 unconsumed) 的记录发一条 WeChat 订阅消息。
+
+| 变量 | 说明 |
+| --- | --- |
+| `NOTIFIER_ENABLED` | `true` 时启动 ticker;`false`(默认)整个功能关闭 |
+| `NOTIFIER_TICK_SECONDS` | tick 间隔,默认 300 |
+| `NOTIFIER_BATCH_SIZE` | 每次 tick 处理的 transition 数量,默认 100 |
+| `NOTIFIER_ATTEMPT_CAP` | 同一 credit 连续失败上限,默认 3(达到即标记 `failed_at`) |
+| `WECHAT_APP_ID` | 小程序 AppID |
+| `WECHAT_APP_SECRET` | 小程序 AppSecret |
+| `WECHAT_ONSALE_TMPL_ID` | 订阅消息模板 ID(演出开票提醒) |
+| `WECHAT_MINIPROGRAM_STATE` | `developer` / `trial` / `formal`,默认 `formal` |
+
+模板字段目前按 `thing1`(演出名称)/ `time2`(开票时间)/ `thing3`(场馆) 组装。若审批下发的模板字段名不同,同步调整 `wechat_push.go`。
+
 ## 本地开发
 
 ```sh
