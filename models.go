@@ -62,6 +62,7 @@ type Performance struct {
 	ImageUrl       *string         `json:"imageUrl"`
 	PriceLabel     *string         `json:"priceLabel"`
 	SaleStatus     *string         `json:"saleStatus"`
+	SaleState      *string         `gorm:"column:sale_state" json:"saleState"`
 	Address        *string         `json:"address"`
 	Intro          *string         `json:"intro"`
 	IsClassical    *bool           `json:"isClassical"`
@@ -117,3 +118,33 @@ type Ticket struct {
 }
 
 func (Ticket) TableName() string { return "tickets" }
+
+// SaleStateTransition is one row per observed change in a performance's
+// sale_state. Written by the scraper's upsert helper (Node side), drained
+// by the notifier ticker below.
+type SaleStateTransition struct {
+	ID            int64      `gorm:"primaryKey" json:"id"`
+	PerformanceID string     `gorm:"column:performance_id" json:"performanceId"`
+	FromState     string     `gorm:"column:from_state" json:"fromState"`
+	ToState       string     `gorm:"column:to_state" json:"toState"`
+	DetectedAt    time.Time  `gorm:"column:detected_at" json:"detectedAt"`
+	NotifiedAt    *time.Time `gorm:"column:notified_at" json:"notifiedAt"`
+}
+
+func (SaleStateTransition) TableName() string { return "sale_state_transitions" }
+
+// NotificationCredit is one user opt-in to a 订阅消息 kind for a specific
+// performance. A single "提醒我开票" tap inserts (or re-arms) one row. The
+// notifier consumes it when a push succeeds; a re-tap after consumption
+// upserts back to an active credit.
+type NotificationCredit struct {
+	Openid        string     `gorm:"primaryKey" json:"openid"`
+	PerformanceID string     `gorm:"primaryKey;column:performance_id" json:"performanceId"`
+	Kind          string     `gorm:"primaryKey" json:"kind"`
+	GrantedAt     time.Time  `gorm:"column:granted_at" json:"grantedAt"`
+	ConsumedAt    *time.Time `gorm:"column:consumed_at" json:"consumedAt"`
+	Attempts      int        `json:"attempts"`
+	FailedAt      *time.Time `gorm:"column:failed_at" json:"failedAt"`
+}
+
+func (NotificationCredit) TableName() string { return "notification_credits" }

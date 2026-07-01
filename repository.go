@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -158,4 +159,83 @@ func pingDb(db *gorm.DB) (int64, error) {
 	var n int64
 	err := db.Table("composers").Count(&n).Error
 	return n, err
+}
+
+// --- Notification credits + sale-state transitions ---
+
+func listPendingOnSaleTransitions(db *gorm.DB, limit int) ([]SaleStateTransition, error) {
+	var rows []SaleStateTransition
+	err := db.
+		Where("to_state = ? AND notified_at IS NULL", "on_sale").
+		Order("detected_at asc").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}
+
+// Active credits for a given performance + kind — unconsumed, un-failed.
+func findActiveCredits(db *gorm.DB, performanceID, kind string) ([]NotificationCredit, error) {
+	var rows []NotificationCredit
+	err := db.
+		Where("performance_id = ? AND kind = ? AND consumed_at IS NULL AND failed_at IS NULL", performanceID, kind).
+		Find(&rows).Error
+	return rows, err
+}
+
+func markCreditConsumed(db *gorm.DB, openid, performanceID, kind string) error {
+	now := time.Now()
+	return db.Model(&NotificationCredit{}).
+		Where("openid = ? AND performance_id = ? AND kind = ?", openid, performanceID, kind).
+		Update("consumed_at", now).Error
+}
+
+// Non-atomic-relative-to-select but the notifier holds an in-memory Attempts
+// count from the row it just read, so it does not race with itself.
+func bumpCreditAttempts(db *gorm.DB, openid, performanceID, kind string) error {
+	return db.Exec(
+		`UPDATE notification_credits SET attempts = attempts + 1
+		 WHERE openid = ? AND performance_id = ? AND kind = ?`,
+		openid, performanceID, kind,
+	).Error
+}
+
+func markCreditFailed(db *gorm.DB, openid, performanceID, kind string) error {
+	now := time.Now()
+	return db.Model(&NotificationCredit{}).
+		Where("openid = ? AND performance_id = ? AND kind = ?", openid, performanceID, kind).
+		Update("failed_at", now).Error
+}
+
+func markTransitionNotified(db *gorm.DB, id int64) error {
+	now := time.Now()
+	return db.Model(&SaleStateTransition{}).
+		Where("id = ?", id).
+		Update("notified_at", now).Error
+}
+
+// Read the list of active credit performance IDs for a given user + kind.
+// Used by /me/notification-credits/ids to hydrate the mini-program's cache.
+func listNotificationCreditIDs(db *gorm.DB, openid, kind string) ([]string, error) {
+	var ids []string
+	err := db.Table("notification_credits").
+		Where("openid = ? AND kind = ? AND consumed_at IS NULL AND failed_at IS NULL", openid, kind).
+		Pluck("performance_id", &ids).Error
+	return ids, err
+}
+
+// Upserts a credit so a re-tap after a prior consumption re-arms the row.
+func upsertNotificationCredit(db *gorm.DB, openid, performanceID, kind string) error {
+	return db.Exec(
+		`INSERT INTO notification_credits (openid, performance_id, kind)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT (openid, performance_id, kind) DO UPDATE
+		   SET granted_at = now(), consumed_at = NULL, attempts = 0, failed_at = NULL`,
+		openid, performanceID, kind,
+	).Error
+}
+
+func removeNotificationCredit(db *gorm.DB, openid, performanceID, kind string) error {
+	return db.
+		Where("openid = ? AND performance_id = ? AND kind = ?", openid, performanceID, kind).
+		Delete(&NotificationCredit{}).Error
 }
