@@ -70,7 +70,7 @@ func (h *handlers) listPerformances(c *gin.Context) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) listBannerPerformances(c *gin.Context) {
@@ -78,7 +78,7 @@ func (h *handlers) listBannerPerformances(c *gin.Context) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) getPerformance(c *gin.Context) {
@@ -90,7 +90,7 @@ func (h *handlers) getPerformance(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 		return
 	}
-	c.JSON(http.StatusOK, row)
+	c.JSON(http.StatusOK, newPerformanceResponse(*row))
 }
 
 func (h *handlers) listArticles(c *gin.Context) {
@@ -215,7 +215,7 @@ func (h *handlers) collection(c *gin.Context, kind collectionKind) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) addFavorite(c *gin.Context) { h.addToCollection(c, kindFavorites) }

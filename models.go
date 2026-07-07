@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/datatypes"
@@ -73,6 +74,40 @@ type Performance struct {
 }
 
 func (Performance) TableName() string { return "performances" }
+
+type PerformanceResponse struct {
+	Performance
+	IntroImages []string `json:"introImages"`
+}
+
+func newPerformanceResponse(row Performance) PerformanceResponse {
+	return PerformanceResponse{
+		Performance: row,
+		IntroImages: introImagesFromMetadata(row.SourceMetadata),
+	}
+}
+
+func newPerformanceResponses(rows []Performance) []PerformanceResponse {
+	responses := make([]PerformanceResponse, 0, len(rows))
+	for _, row := range rows {
+		responses = append(responses, newPerformanceResponse(row))
+	}
+	return responses
+}
+
+func introImagesFromMetadata(raw *datatypes.JSON) []string {
+	if raw == nil || len(*raw) == 0 {
+		return []string{}
+	}
+
+	var metadata struct {
+		IntroImages []string `json:"introImages"`
+	}
+	if err := json.Unmarshal(*raw, &metadata); err != nil || metadata.IntroImages == nil {
+		return []string{}
+	}
+	return metadata.IntroImages
+}
 
 type Article struct {
 	ID                 string         `gorm:"primaryKey" json:"id"`
