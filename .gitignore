@@ -2,3 +2,5 @@ node_modules
 .wrangler
 /server
 *.log
+# compiled binary
+gin-container

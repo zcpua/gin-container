@@ -70,7 +70,7 @@ func (h *handlers) listPerformances(c *gin.Context) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) listBannerPerformances(c *gin.Context) {
@@ -78,7 +78,7 @@ func (h *handlers) listBannerPerformances(c *gin.Context) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) getPerformance(c *gin.Context) {
@@ -90,7 +90,7 @@ func (h *handlers) getPerformance(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 		return
 	}
-	c.JSON(http.StatusOK, row)
+	c.JSON(http.StatusOK, newPerformanceResponse(*row))
 }
 
 func (h *handlers) listArticles(c *gin.Context) {
@@ -215,7 +215,7 @@ func (h *handlers) collection(c *gin.Context, kind collectionKind) {
 	if abortOnErr(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, rows)
+	c.JSON(http.StatusOK, newPerformanceResponses(rows))
 }
 
 func (h *handlers) addFavorite(c *gin.Context) { h.addToCollection(c, kindFavorites) }
@@ -258,6 +258,65 @@ func abortOnErr(c *gin.Context, err error) bool {
 		return true
 	}
 	return false
+}
+
+// --- Notification credits ---
+
+func (h *handlers) notificationCreditIDs(c *gin.Context) {
+	openid := ctxOpenid(c)
+	kind := c.DefaultQuery("kind", "on_sale")
+	ids, err := listNotificationCreditIDs(h.db, openid, kind)
+	if abortOnErr(c, err) {
+		return
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"ids": ids})
+}
+
+type creditBody struct {
+	Kind string `json:"kind"`
+}
+
+func (h *handlers) addNotificationCredit(c *gin.Context) {
+	openid := ctxOpenid(c)
+	performanceID := c.Param("performanceId")
+	perf, err := findPerformanceByID(h.db, performanceID)
+	if abortOnErr(c, err) {
+		return
+	}
+	if perf == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "performance not found"})
+		return
+	}
+	var body creditBody
+	_ = c.ShouldBindJSON(&body)
+	kind := body.Kind
+	if kind == "" {
+		kind = "on_sale"
+	}
+	if kind != "on_sale" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported kind"})
+		return
+	}
+	if err := ensureUser(h.db, openid, ctxUnionid(c)); abortOnErr(c, err) {
+		return
+	}
+	if err := upsertNotificationCredit(h.db, openid, performanceID, kind); abortOnErr(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *handlers) removeNotificationCredit(c *gin.Context) {
+	openid := ctxOpenid(c)
+	performanceID := c.Param("performanceId")
+	kind := c.DefaultQuery("kind", "on_sale")
+	if err := removeNotificationCredit(h.db, openid, performanceID, kind); abortOnErr(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func truncate(s string, max int) string {

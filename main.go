@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -88,7 +90,34 @@ func main() {
 			me.DELETE("/favorites/:performanceId", h.removeFavorite)
 			me.POST("/tickets/:performanceId", h.addTicket)
 			me.DELETE("/tickets/:performanceId", h.removeTicket)
+
+			me.GET("/notification-credits/ids", h.notificationCreditIDs)
+			me.POST("/notification-credits/:performanceId", h.addNotificationCredit)
+			me.DELETE("/notification-credits/:performanceId", h.removeNotificationCredit)
 		}
+	}
+
+	// Notifier ticker for the 开票提醒 feature. Kill-switch is the
+	// NOTIFIER_ENABLED env: when false (default), the ticker is never
+	// started, so no push code path can fire.
+	if envOr("NOTIFIER_ENABLED", "false") == "true" {
+		push := newWechatPusher(wechatPushConfig{
+			AppID:            os.Getenv("WECHAT_APP_ID"),
+			AppSecret:        os.Getenv("WECHAT_APP_SECRET"),
+			OnSaleTmplID:     os.Getenv("WECHAT_ONSALE_TMPL_ID"),
+			MiniprogramState: envOr("WECHAT_MINIPROGRAM_STATE", "formal"),
+		}, nil, time.Now)
+		n := &notifier{
+			repo:       &gormRepo{db: db},
+			push:       push,
+			perfLookup: func(id string) (*Performance, error) { return findPerformanceByID(db, id) },
+			batchSize:  envInt("NOTIFIER_BATCH_SIZE", 100),
+			attemptCap: envInt("NOTIFIER_ATTEMPT_CAP", 3),
+			enabled:    true,
+			sendPause:  50 * time.Millisecond,
+		}
+		tickSec := envInt("NOTIFIER_TICK_SECONDS", 300)
+		go n.run(context.Background(), time.Duration(tickSec)*time.Second)
 	}
 
 	port := envOr("PORT", "8080")
@@ -100,6 +129,15 @@ func main() {
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return fallback
 }
