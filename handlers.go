@@ -290,6 +290,10 @@ func (h *handlers) addNotificationCredit(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "performance not found"})
 		return
 	}
+	if !canCreateOnSaleCredit(perf) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "performance already on sale or unavailable"})
+		return
+	}
 	var body creditBody
 	_ = c.ShouldBindJSON(&body)
 	kind := body.Kind
@@ -317,6 +321,13 @@ func (h *handlers) removeNotificationCredit(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func canCreateOnSaleCredit(perf *Performance) bool {
+	if perf == nil || perf.SaleState == nil || *perf.SaleState == "" {
+		return true
+	}
+	return *perf.SaleState == "unknown" || *perf.SaleState == "pre_sale"
 }
 
 func truncate(s string, max int) string {
